@@ -79,6 +79,61 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Collapsible Manual Entry
+   ───────────────────────────────────────────────────────────── */
+
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #e7e9ee;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.collapsible-header:hover {
+  color: #a5b4fc;
+}
+
+.collapse-arrow {
+  font-size: 18px;
+  transition: transform 0.2s ease;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.collapse-arrow.open {
+  transform: rotate(90deg);
+}
+
+.collapsible-body {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.manual-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 768px) {
+  .manual-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .manual-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
    Practice & Raw Text
    ───────────────────────────────────────────────────────────── */
 
@@ -93,6 +148,21 @@
   padding: 6px 28px 6px 8px;
   font-size: 13px;
   border-radius: 8px;
+}
+
+.table-input {
+  width: 100%;
+  min-width: 100px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e7e9ee;
+}
+
+.table-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .practice-hint {

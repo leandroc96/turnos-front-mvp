@@ -8,6 +8,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs
 export type ParsedDocument = {
   patientName: string;
   insurance: string;
+  carnet: string;
   age: string;
   surgeon: string;
   practice: string;
@@ -88,6 +89,12 @@ export function parseDocument(text: string): ParsedDocument {
     /[O0]\s*\.?\s*[Ss]oc\w*\s*[:\s]+(.+?)(?:\n|Edad|C[ao]r?[nm]et|Fecha|\d{5,}|$)/i,
   ]);
 
+  const carnet = extractField(normalized, [
+    /C[ao]r?[nm]et\s*[:\s]+([A-Za-z0-9\s\-/.]+?)(?:\n|Edad|Fecha|$)/i,
+    /N[°º]?\s*(?:de\s+)?[Aa]filiado\s*[:\s]+([A-Za-z0-9\s\-/.]+?)(?:\n|Edad|Fecha|$)/i,
+    /N[°º]?\s*[Cc]arnet\s*[:\s]+([A-Za-z0-9\s\-/.]+?)(?:\n|Edad|Fecha|$)/i,
+  ]);
+
   const age = extractField(normalized, [
     /Edad\s*[:\s]+(\d{1,3})/i,
     /Edad\s+(\d{1,3})/i,
@@ -121,6 +128,7 @@ export function parseDocument(text: string): ParsedDocument {
   return {
     patientName,
     insurance,
+    carnet,
     age,
     surgeon,
     practice,
