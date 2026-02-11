@@ -24,6 +24,21 @@ export function Navbar() {
             🔬 Estudios
           </NavLink>
         </li>
+        <li>
+          <NavLink to="/obras-sociales" className={({ isActive }) => isActive ? "active" : ""}>
+            🏛️ Obras Sociales
+          </NavLink>
+        </li>
+        <li>
+          <NavLink to="/tarifas" className={({ isActive }) => isActive ? "active" : ""}>
+            💲 Tarifas
+          </NavLink>
+        </li>
+        <li>
+          <NavLink to="/facturacion" className={({ isActive }) => isActive ? "active" : ""}>
+            📄 Facturación
+          </NavLink>
+        </li>
       </ul>
     </nav>
   );

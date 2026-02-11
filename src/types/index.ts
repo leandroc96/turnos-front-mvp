@@ -60,6 +60,32 @@ export type StudiesResponse = {
   count?: number;
 };
 
+export type ObraSocial = {
+  obraSocialId: string;
+  nombre: string;
+  codigo?: string;
+  activa: boolean;
+};
+
+export type ObrasSocialesResponse = {
+  obrasSociales: ObraSocial[];
+  count?: number;
+};
+
+export type Tarifa = {
+  tarifaId: string;
+  estudioId: string;
+  obraSocialId: string;
+  precio: number;
+  nombreEstudio?: string;
+  nombreObraSocial?: string;
+};
+
+export type TarifasResponse = {
+  tarifas: Tarifa[];
+  count?: number;
+};
+
 export type ResultState = {
   type: "success" | "warning" | "error";
   text: string;

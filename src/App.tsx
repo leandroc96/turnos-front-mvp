@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Layout";
-import { AppointmentsPage, DoctorsPage, StudiesPage } from "./pages";
+import { AppointmentsPage, DoctorsPage, StudiesPage, BillingPage, ObrasSocialesPage, TarifasPage } from "./pages";
 import "./App.css";
 
 function App() {
@@ -13,6 +13,9 @@ function App() {
             <Route path="/" element={<AppointmentsPage />} />
             <Route path="/doctors" element={<DoctorsPage />} />
             <Route path="/studies" element={<StudiesPage />} />
+            <Route path="/obras-sociales" element={<ObrasSocialesPage />} />
+            <Route path="/tarifas" element={<TarifasPage />} />
+            <Route path="/facturacion" element={<BillingPage />} />
           </Routes>
         </main>
       </div>
