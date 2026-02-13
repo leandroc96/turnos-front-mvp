@@ -10,7 +10,8 @@ type DocumentEntry = ParsedDocument & {
   doctorId: string;        // Doctor seleccionado del ABM
   studyId: string;         // Estudio seleccionado del ABM
   obraSocialId: string;    // Obra social seleccionada del ABM
-  precio: number | null;   // Precio auto-calculado
+  precio: number | null;   // Arancel auto-calculado (Estudio × O.S.)
+  honorario: number | null; // Honorario médico auto-calculado (del Estudio)
 };
 
 export function BillingPage() {
@@ -83,23 +84,34 @@ export function BillingPage() {
     return partial?.obraSocialId || "";
   }
 
-  // Calcular precio cuando cambian studyId o obraSocialId
+  // Calcular arancel cuando cambian studyId o obraSocialId
   const calcPrecio = useCallback((studyId: string, obraSocialId: string): number | null => {
     if (!studyId || !obraSocialId) return null;
     return getPrecio(studyId, obraSocialId);
   }, [getPrecio]);
+
+  // Obtener honorario del estudio
+  const calcHonorario = useCallback((studyId: string): number | null => {
+    if (!studyId) return null;
+    const study = studies.find((s) => s.studyId === studyId);
+    return study?.honorario ?? null;
+  }, [studies]);
 
   function updateEntry(id: string, field: keyof DocumentEntry, value: string) {
     setEntries((prev) =>
       prev.map((e) => {
         if (e.id !== id) return e;
         const updated = { ...e, [field]: value };
-        // Recalcular precio cuando cambian studyId o obraSocialId
+        // Recalcular arancel cuando cambian studyId o obraSocialId
         if (field === "studyId" || field === "obraSocialId") {
           updated.precio = calcPrecio(
             field === "studyId" ? value : e.studyId,
             field === "obraSocialId" ? value : e.obraSocialId,
           );
+        }
+        // Recalcular honorario cuando cambia studyId
+        if (field === "studyId") {
+          updated.honorario = calcHonorario(value);
         }
         return updated;
       })
@@ -132,6 +144,7 @@ export function BillingPage() {
           studyId: matchedStudyId,
           obraSocialId: matchedObraSocialId,
           precio: calcPrecio(matchedStudyId, matchedObraSocialId),
+          honorario: calcHonorario(matchedStudyId),
         };
 
         setEntries((prev) => [...prev, entry]);
@@ -195,6 +208,7 @@ export function BillingPage() {
       studyId: manualForm.studyId,
       obraSocialId: manualForm.obraSocialId,
       precio: calcPrecio(manualForm.studyId, manualForm.obraSocialId),
+      honorario: calcHonorario(manualForm.studyId),
     };
 
     setEntries((prev) => [...prev, entry]);
@@ -223,8 +237,8 @@ export function BillingPage() {
   function exportToExcel() {
     if (entries.length === 0) return;
 
-    // Columnas según plantilla: FECHA | MEDICO/A | PACIENTE | EDAD | OBRA SOCIAL | NRO AFILIADO | ESTUDIO REALIZADO | ARANCEL
-    const headers = ["FECHA", "MEDICO/A", "PACIENTE", "EDAD", "OBRA SOCIAL", "NRO AFILIADO", "ESTUDIO REALIZADO", "ARANCEL"];
+    // Columnas según plantilla + honorario
+    const headers = ["FECHA", "MEDICO/A", "PACIENTE", "EDAD", "OBRA SOCIAL", "NRO AFILIADO", "ESTUDIO REALIZADO", "ARANCEL", "HONORARIO"];
 
     const worksheet: XLSX.WorkSheet = {};
 
@@ -247,7 +261,8 @@ export function BillingPage() {
       worksheet[cellRef] = { v: header, t: "s", s: headerStyle };
     });
 
-    const COL_ARANCEL = 7; // índice de la columna ARANCEL
+    const COL_ARANCEL = 7;
+    const COL_HONORARIO = 8;
 
     entries.forEach((entry, rowIndex) => {
       const rowData: (string | number)[] = [
@@ -259,19 +274,20 @@ export function BillingPage() {
         entry.carnet || "",
         getNombreEstudio(entry.studyId) || entry.practice || "(sin asignar)",
         entry.precio ?? 0,
+        entry.honorario ?? 0,
       ];
 
       rowData.forEach((cell, colIndex) => {
         const cellRef = XLSX.utils.encode_cell({ r: rowIndex + 1, c: colIndex });
-        const esArancel = colIndex === COL_ARANCEL;
+        const esMonto = colIndex === COL_ARANCEL || colIndex === COL_HONORARIO;
         worksheet[cellRef] = {
           v: cell,
-          t: esArancel ? "n" : "s",
+          t: esMonto ? "n" : "s",
           s: {
             border,
-            alignment: { vertical: "center", horizontal: esArancel ? "right" : "left" },
-            numFmt: esArancel ? "#,##0.00" : undefined,
-            font: esArancel && cell === 0 ? { color: { rgb: "999999" } } : undefined,
+            alignment: { vertical: "center", horizontal: esMonto ? "right" : "left" },
+            numFmt: esMonto ? "#,##0.00" : undefined,
+            font: esMonto && cell === 0 ? { color: { rgb: "999999" } } : undefined,
           },
         };
       });
@@ -299,9 +315,22 @@ export function BillingPage() {
       },
     };
 
+    const totalHonRef = XLSX.utils.encode_cell({ r: totalRow, c: COL_HONORARIO });
+    const montoTotalHon = entries.reduce((sum, e) => sum + (e.honorario || 0), 0);
+    worksheet[totalHonRef] = {
+      v: montoTotalHon,
+      t: "n",
+      s: {
+        border,
+        font: { bold: true, color: { rgb: "16A34A" } },
+        alignment: { horizontal: "right", vertical: "center" },
+        numFmt: "#,##0.00",
+      },
+    };
+
     // Bordes en celdas vacías del total
     for (let c = 0; c < headers.length; c++) {
-      if (c === COL_ARANCEL - 1 || c === COL_ARANCEL) continue;
+      if (c === COL_ARANCEL - 1 || c === COL_ARANCEL || c === COL_HONORARIO) continue;
       const ref = XLSX.utils.encode_cell({ r: totalRow, c });
       worksheet[ref] = { v: "", t: "s", s: { border } };
     }
@@ -320,6 +349,7 @@ export function BillingPage() {
       { wch: 18 },  // NRO AFILIADO
       { wch: 28 },  // ESTUDIO REALIZADO
       { wch: 14 },  // ARANCEL
+      { wch: 14 },  // HONORARIO
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -519,7 +549,8 @@ export function BillingPage() {
                   <th>Edad</th>
                   <th>Cirujano</th>
                   <th>Estudio</th>
-                  <th>Precio</th>
+                  <th>Arancel</th>
+                  <th>Honorario</th>
                   <th>Fecha</th>
                   <th>Acciones</th>
                 </tr>
@@ -618,6 +649,17 @@ export function BillingPage() {
                         <span className="muted">—</span>
                       )}
                     </td>
+                    <td className="price-cell">
+                      {entry.honorario !== null && entry.honorario > 0 ? (
+                        <span className="honorario-value">
+                          ${entry.honorario.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      ) : entry.studyId ? (
+                        <span className="muted">$0</span>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
                     <td>{entry.date || "—"}</td>
                     <td>
                       <div className="table-actions">
@@ -650,6 +692,13 @@ export function BillingPage() {
                     <strong className="price-value total-price">
                       ${entries
                         .reduce((sum, e) => sum + (e.precio || 0), 0)
+                        .toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </strong>
+                  </td>
+                  <td className="price-cell">
+                    <strong className="honorario-value total-price">
+                      ${entries
+                        .reduce((sum, e) => sum + (e.honorario || 0), 0)
                         .toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </strong>
                   </td>

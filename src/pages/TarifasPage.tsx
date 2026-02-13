@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useStudies, useObrasSociales, useTarifas } from "../hooks";
 import type { Tarifa } from "../types";
+import { updateStudy as apiUpdateStudy } from "../services/api";
 
 export function TarifasPage() {
   const { studies, fetchStudies, loading: loadingStudies } = useStudies();
@@ -13,6 +14,8 @@ export function TarifasPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [formHonorario, setFormHonorario] = useState("");
 
   // Filtros
   const [filtroEstudio, setFiltroEstudio] = useState("");
@@ -28,6 +31,12 @@ export function TarifasPage() {
   const studyMap = useMemo(() => {
     const map = new Map<string, string>();
     studies.forEach((s) => map.set(s.studyId, s.name));
+    return map;
+  }, [studies]);
+
+  const honorarioMap = useMemo(() => {
+    const map = new Map<string, number>();
+    studies.forEach((s) => map.set(s.studyId, s.honorario ?? 0));
     return map;
   }, [studies]);
 
@@ -50,6 +59,7 @@ export function TarifasPage() {
     setFormEstudioId("");
     setFormObraSocialId("");
     setFormPrecio("");
+    setFormHonorario("");
     setEditingId(null);
   }
 
@@ -57,6 +67,7 @@ export function TarifasPage() {
     setFormEstudioId(t.estudioId);
     setFormObraSocialId(t.obraSocialId);
     setFormPrecio(t.precio.toString());
+    setFormHonorario((honorarioMap.get(t.estudioId) ?? 0).toString());
     setEditingId(t.tarifaId);
     setMessage(null);
   }
@@ -90,8 +101,24 @@ export function TarifasPage() {
       }
     }
 
+    // Guardar honorario del estudio si cambió
+    const honorarioNuevo = parseFloat(formHonorario) || 0;
+    const honorarioActual = honorarioMap.get(formEstudioId) ?? 0;
+
     setSubmitting(true);
     try {
+      // Actualizar honorario si cambió
+      if (honorarioNuevo !== honorarioActual) {
+        const resHon = await apiUpdateStudy(formEstudioId, { honorario: honorarioNuevo });
+        if (!resHon.ok) {
+          const text = await resHon.text().catch(() => "");
+          setMessage({ type: "error", text: `❌ Error al guardar honorario: ${text || resHon.statusText}` });
+          setSubmitting(false);
+          return;
+        }
+        await fetchStudies(); // Refrescar para actualizar honorarioMap
+      }
+
       if (editingId) {
         const res = await updateTarifa(editingId, {
           estudioId: formEstudioId,
@@ -159,7 +186,15 @@ export function TarifasPage() {
               Estudio
               <select
                 value={formEstudioId}
-                onChange={(e) => setFormEstudioId(e.target.value)}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setFormEstudioId(id);
+                  if (id) {
+                    setFormHonorario((honorarioMap.get(id) ?? 0).toString());
+                  } else {
+                    setFormHonorario("");
+                  }
+                }}
               >
                 <option value="">Seleccionar estudio</option>
                 {studies.map((s) => (
@@ -186,7 +221,7 @@ export function TarifasPage() {
             </label>
 
             <label>
-              Precio ($)
+              Arancel ($)
               <input
                 type="number"
                 step="0.01"
@@ -196,7 +231,22 @@ export function TarifasPage() {
                 placeholder="0.00"
               />
             </label>
+
+            <label>
+              Honorario médico ($)
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formHonorario}
+                onChange={(e) => setFormHonorario(e.target.value)}
+                placeholder="0.00"
+              />
+            </label>
           </div>
+          <small style={{ color: "#6b7280", marginTop: "4px", display: "block" }}>
+            * El honorario es un valor fijo por estudio, no varía por obra social.
+          </small>
 
           <div className="form-actions">
             <button type="submit" disabled={submitting} className="btn">
@@ -226,7 +276,7 @@ export function TarifasPage() {
         </div>
 
         {/* Filtros */}
-        <div className="filter-row" style={{ marginBottom: "1rem" }}>
+        <div className="filter-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
           <label>
             Filtrar estudio
             <select value={filtroEstudio} onChange={(e) => setFiltroEstudio(e.target.value)}>
@@ -262,7 +312,8 @@ export function TarifasPage() {
                 <tr>
                   <th>Estudio</th>
                   <th>Obra Social</th>
-                  <th style={{ textAlign: "right" }}>Precio</th>
+                  <th style={{ textAlign: "right" }}>Arancel</th>
+                  <th style={{ textAlign: "right" }}>Honorario</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -273,6 +324,12 @@ export function TarifasPage() {
                     <td>{t.nombreObraSocial || osMap.get(t.obraSocialId) || t.obraSocialId}</td>
                     <td style={{ textAlign: "right", fontWeight: 600 }}>
                       ${t.precio.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ textAlign: "right", color: "#6b7280" }}>
+                      {(honorarioMap.get(t.estudioId) ?? 0) > 0
+                        ? `$${(honorarioMap.get(t.estudioId) ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : "—"
+                      }
                     </td>
                     <td>
                       <div className="table-actions">

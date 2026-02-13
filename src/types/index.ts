@@ -47,6 +47,7 @@ export type Study = {
   studyId: string;
   name: string;
   durationMinutes: number;
+  honorario: number;
   active: boolean;
 };
 
